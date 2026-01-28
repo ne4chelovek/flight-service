@@ -2,13 +2,17 @@ package closer
 
 import (
 	"context"
+	"flight-service/internal/app"
+	"flight-service/internal/logger"
+
+	"go.uber.org/zap"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 )
 
-func WaitForShutdown(ctx context.Context, errChan <-chan error, s *server.Servers) {
+func WaitForShutdown(ctx context.Context, errChan <-chan error, s *app.Servers) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
@@ -38,10 +42,6 @@ func WaitForShutdown(ctx context.Context, errChan <-chan error, s *server.Server
 	logger.Info("Stopping Prometheus...")
 	if err := s.Prometheus.Shutdown(shutdownCtx); err != nil {
 		logger.Error("Prometheus shutdown error:", zap.Error(err))
-	}
-
-	if s.KafkaProducer != nil {
-		s.KafkaProducer.Close()
 	}
 
 	logger.Info("Closing database connections...")
