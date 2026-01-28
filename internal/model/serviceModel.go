@@ -19,3 +19,14 @@ type FlightData struct {
 	PassengersCount int       `db:"passengers_count"`
 	UpdatedAt       time.Time `db:"updated_at"`
 }
+
+type Pagination struct {
+	Total int `json:"total"`
+	Limit int `json:"limit"`
+}
+
+type FlightMetaResponse struct {
+	FlightNumber string       `json:"flight_number"`
+	Meta         []FlightMeta `json:"meta"`
+	Pagination   Pagination   `json:"pagination"`
+}
