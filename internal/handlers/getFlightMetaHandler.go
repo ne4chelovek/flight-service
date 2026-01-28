@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"flight-service/internal/logger"
-	"flight-service/internal/model"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
