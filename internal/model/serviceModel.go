@@ -26,7 +26,7 @@ type Pagination struct {
 }
 
 type FlightMetaResponse struct {
-	FlightNumber string       `json:"flight_number"`
-	Meta         []FlightMeta `json:"meta"`
-	Pagination   Pagination   `json:"pagination"`
+	FlightNumber string        `json:"flight_number"`
+	Meta         []*FlightMeta `json:"meta"`
+	Pagination   Pagination    `json:"pagination"`
 }

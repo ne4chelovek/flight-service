@@ -33,7 +33,7 @@ func NewProducer(brokers []string, topic string) (*Producer, error) {
 }
 
 // SendFlightMessage отправляет сообщение FlightRequest в Kafka
-func (p *Producer) SendFlightMessage(metaID int, request model.FlightRequest) error {
+func (p *Producer) SendFlightMessage(metaID int, request *model.FlightRequest) error {
 	jsonData, err := json.Marshal(request)
 	if err != nil {
 		return fmt.Errorf("ошибка маршалинга FlightRequest в JSON: %w", err)

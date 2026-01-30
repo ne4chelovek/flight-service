@@ -35,8 +35,6 @@ func (h *FlightHandler) GetFlightMetaHandler(c *gin.Context) {
 		limit = parsedLimit
 	}
 
-	// Выполнение запроса к таблице flight_meta с фильтрацией и пагинацией
-	// Используем смещение 0, так как в ТЗ не указано о смещении
 	offset := 0
 
 	metas, total, err := h.metaRepo.GetByFlightNumber(c.Request.Context(), flightNumber, status, limit, offset)

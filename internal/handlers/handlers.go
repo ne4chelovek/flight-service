@@ -33,7 +33,7 @@ func NewFlightHandler(metaRepo repository.MetaRepository, flightRepo repository.
 // processKafkaMessages обрабатывает сообщения из канала и отправляет их в Kafka
 func (h *FlightHandler) processKafkaMessages() {
 	for reqData := range h.requestChan {
-		err := h.kafkaProducer.SendFlightMessage(reqData.MetaID, reqData.Request)
+		err := h.kafkaProducer.SendFlightMessage(reqData.MetaID, &reqData.Request)
 		if err != nil {
 			logger.Error("Failed to send message to Kafka", zap.Error(err))
 		}
