@@ -47,7 +47,7 @@ func runHTTPServer(s *http.Server, name string, errChan chan<- error) {
 		zap.Time("started_at", time.Now()),
 	)
 	if err := s.ListenAndServe(); err != nil {
-		errChan <- fmt.Errorf("failed to start HTTP server: %v", err)
+		errChan <- fmt.Errorf("failed to start %s server: %w", name, err)
 	}
 }
 
