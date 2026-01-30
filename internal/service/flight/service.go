@@ -2,16 +2,10 @@ package flight
 
 import (
 	"flight-service/internal/kafka"
-	"flight-service/internal/model"
 	"flight-service/internal/repository"
 	"flight-service/internal/service"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-type kafkaRequest struct {
-	metaID  int
-	request *model.FlightRequest
-}
 
 type flightService struct {
 	metaRepo      repository.MetaRepository
