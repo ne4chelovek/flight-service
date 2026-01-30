@@ -5,6 +5,7 @@ import (
 	"flight-service/internal/app"
 	"flight-service/internal/app/closer"
 	"flight-service/internal/config"
+	"flight-service/internal/kafka"
 	"flight-service/internal/logger"
 	"flight-service/internal/metrics"
 	"fmt"
@@ -29,10 +30,12 @@ func main() {
 
 	metrics.Register()
 
-	errChan := make(chan error, 1)
+	errChan := make(chan error, 2)
 
 	go runHTTPServer(servers.HTTP, "HTTP", errChan)
 	go runHTTPServer(servers.Prometheus, "Prometheus", errChan)
+
+	go runKafkaConsumer(ctx, servers.KafkaConsumer, "Kafka Consumer", errChan)
 
 	closer.WaitForShutdown(ctx, errChan, servers)
 }
@@ -45,5 +48,16 @@ func runHTTPServer(s *http.Server, name string, errChan chan<- error) {
 	)
 	if err := s.ListenAndServe(); err != nil {
 		errChan <- fmt.Errorf("failed to start HTTP server: %v", err)
+	}
+}
+
+func runKafkaConsumer(ctx context.Context, consumer *kafka.Consumer, name string, errChan chan<- error) {
+	logger.Info("Starting Kafka consumer",
+		zap.String("name", name),
+		zap.Time("started_at", time.Now()),
+	)
+
+	if err := consumer.Consume(ctx); err != nil {
+		errChan <- fmt.Errorf("failed to start Kafka consumer: %w", err)
 	}
 }

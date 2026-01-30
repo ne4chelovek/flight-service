@@ -26,14 +26,34 @@ func WaitForShutdown(ctx context.Context, errChan <-chan error, s *app.Servers) 
 	}
 
 	// Graceful shutdown
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer shutdownCancel()
 
+	logger.Info("Starting graceful shutdown...")
+
+	// 1. Останавливаем прием новых HTTP запросов
 	logger.Info("Stopping HTTP server...")
 	if err := s.HTTP.Shutdown(shutdownCtx); err != nil {
 		logger.Error("HTTP server shutdown error:", zap.Error(err))
 	}
 
+	// 2. Закрываем Kafka consumer
+	logger.Info("Closing Kafka consumer...")
+	if s.KafkaConsumer != nil {
+		if err := s.KafkaConsumer.Close(); err != nil {
+			logger.Error("Kafka consumer close error:", zap.Error(err))
+		}
+	}
+
+	// 3. Закрываем Kafka producer (он завершит обработку сообщений в канале)
+	logger.Info("Closing Kafka producer (waiting for pending messages)...")
+	if s.KafkaProducer != nil {
+		if err := s.KafkaProducer.Close(); err != nil {
+			logger.Error("Kafka producer close error:", zap.Error(err))
+		}
+	}
+
+	// 4. Закрываем остальные соединения
 	logger.Info("Closing redis connections...")
 	if err := s.Redis.Close(); err != nil {
 		logger.Error("Redis close error:", zap.Error(err))
@@ -46,4 +66,6 @@ func WaitForShutdown(ctx context.Context, errChan <-chan error, s *app.Servers) 
 
 	logger.Info("Closing database connections...")
 	s.DB.Close()
+
+	logger.Info("Graceful shutdown completed")
 }

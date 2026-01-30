@@ -28,19 +28,22 @@ func (h *FlightHandler) GetFlightHandler(c *gin.Context) {
 		return
 	}
 
-	// Выполнение запроса к таблице flights
-	flight, err := h.flightRepo.Get(c.Request.Context(), flightNumber, departureDate)
+	// Используем сервис для получения полета
+	flight, err := h.flightService.GetFlight(c.Request.Context(), flightNumber, departureDate)
 	if err != nil {
 		logger.Error("Failed to get flight", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get flight"})
 		return
 	}
 
-	// Возврат данных рейса в нужном формате
+	// Возврат ВСЕХ данных рейса согласно FlightData
 	response := gin.H{
+		"aircraft_type":    flight.AircraftType,
 		"flight_number":    flight.FlightNumber,
 		"departure_date":   flight.DepartureDate.Format(time.RFC3339),
+		"arrival_date":     flight.ArrivalDate.Format(time.RFC3339),
 		"passengers_count": flight.PassengersCount,
+		"updated_at":       flight.UpdatedAt.Format(time.RFC3339),
 	}
 
 	c.JSON(http.StatusOK, response)

@@ -62,7 +62,7 @@ func (r *metaRepository) GetByFlightNumber(ctx context.Context, flightNumber str
 	baseQuery := r.sq.Select("id", "flight_number", "departure_date", "status", "created_at", "processed_at").
 		From("flight_meta").
 		Where(squirrel.Eq{"flight_number": flightNumber}).
-		OrderBy("id").
+		OrderBy("created_at DESC").
 		Limit(uint64(limit)).
 		Offset(uint64(offset)).
 		PlaceholderFormat(squirrel.Dollar)

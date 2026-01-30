@@ -3,12 +3,14 @@ package kafka
 import (
 	"context"
 	"encoding/json"
+	"flight-service/internal/logger"
+	"flight-service/internal/metrics"
 	"flight-service/internal/model"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/IBM/sarama"
+	"go.uber.org/zap"
 )
 
 // MessageHandler интерфейс для обработки сообщений
@@ -50,14 +52,20 @@ func (c *Consumer) Consume(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			logger.Info("Context cancelled, stopping consumer...")
 			return c.consumerGroup.Close()
 		default:
 			err := c.consumerGroup.Consume(ctx, []string{c.topic}, c)
 			if err != nil {
-				log.Printf("Ошибка при потреблении сообщений: %v", err)
+				logger.Info("Ошибка при потреблении сообщений: %v", zap.Error(err))
 			}
 		}
 	}
+}
+
+// Close закрывает соединение с Kafka
+func (c *Consumer) Close() error {
+	return c.consumerGroup.Close()
 }
 
 // Setup вызывается при инициализации сессии
@@ -76,7 +84,8 @@ func (c *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim saram
 		var request model.FlightRequest
 		err := json.Unmarshal(message.Value, &request)
 		if err != nil {
-			log.Printf("Ошибка при разборе JSON сообщения: %v", err)
+			logger.Error("Ошибка при разборе JSON сообщения", zap.Error(err))
+			metrics.KafkaProcessingErrors.Inc()
 			continue
 		}
 
@@ -84,16 +93,20 @@ func (c *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim saram
 		var metaID int
 		_, err = fmt.Sscanf(string(message.Key), "%d", &metaID)
 		if err != nil {
-			log.Printf("Ошибка при извлечении metaID: %v", err)
+			logger.Error("Ошибка при извлечении metaID", zap.Error(err))
+			metrics.KafkaProcessingErrors.Inc()
 			continue
 		}
 
 		// Обработка сообщения с retry логикой
 		err = c.processWithRetry(session.Context(), metaID, &request)
 		if err != nil {
-			log.Printf("Ошибка при обработке сообщения после всех попыток: %v", err)
+			logger.Error("Ошибка при обработке сообщения после всех попыток", zap.Error(err))
+			metrics.KafkaProcessingErrors.Inc()
 			continue
 		}
+
+		metrics.KafkaMessagesProcessed.Inc()
 
 		// Подтверждение обработки сообщения только при успешной транзакции
 		session.MarkMessage(message, "")
@@ -113,10 +126,14 @@ func (c *Consumer) processWithRetry(ctx context.Context, metaID int, request *mo
 
 		lastErr = c.handler.ProcessFlightMessage(ctx, metaID, request)
 		if lastErr == nil {
+			metrics.KafkaMessagesProcessed.Inc()
 			return nil
 		}
 
-		log.Printf("Ошибка при обработке сообщения (попытка %d): %v", attempt+1, lastErr)
+		logger.Error("Ошибка при обработке сообщения",
+			zap.Int("attempt", attempt+1),
+			zap.Int("meta_id", metaID),
+			zap.Error(lastErr))
 	}
 
 	return lastErr

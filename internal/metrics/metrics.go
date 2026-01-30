@@ -36,6 +36,13 @@ var (
 		},
 	)
 
+	KafkaProcessingErrors = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "kafka_processing_errors_total",
+			Help: "Total number of errors during Kafka message processing",
+		},
+	)
+
 	FlightsProcessed = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Name: "flights_processed_total",
@@ -66,6 +73,21 @@ var (
 		},
 		[]string{"channel"},
 	)
+
+	FlightMetaStatusCount = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "flight_meta_status_count",
+			Help: "Count of flight meta records by status",
+		},
+		[]string{"status"},
+	)
+
+	KafkaConsumerLag = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "kafka_consumer_lag_current",
+			Help: "Current lag of Kafka consumer",
+		},
+	)
 )
 
 func Register() {
@@ -73,8 +95,11 @@ func Register() {
 	prometheus.MustRegister(HttpDuration)
 	prometheus.MustRegister(KafkaMessagesSent)
 	prometheus.MustRegister(KafkaMessagesProcessed)
+	prometheus.MustRegister(KafkaProcessingErrors)
 	prometheus.MustRegister(FlightsProcessed)
 	prometheus.MustRegister(Passengers)
 	prometheus.MustRegister(AircraftTypeCount)
 	prometheus.MustRegister(ChannelSize)
+	prometheus.MustRegister(FlightMetaStatusCount)
+	prometheus.MustRegister(KafkaConsumerLag)
 }

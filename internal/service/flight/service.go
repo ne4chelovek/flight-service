@@ -1,32 +1,33 @@
-package service
+package flight
 
 import (
 	"flight-service/internal/kafka"
+	"flight-service/internal/model"
 	"flight-service/internal/repository"
 	"flight-service/internal/service"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+type kafkaRequest struct {
+	metaID  int
+	request *model.FlightRequest
+}
 
 type flightService struct {
 	metaRepo      repository.MetaRepository
 	flightRepo    repository.FlightRepository
 	kafkaProducer *kafka.Producer
 	dbPool        *pgxpool.Pool
-	messageChan   chan ProcessFlightMessageRequest
 }
 
 // NewFlightService создает новый экземпляр FlightService
 func NewFlightService(metaRepo repository.MetaRepository, flightRepo repository.FlightRepository, kafkaProducer *kafka.Producer, dbPool *pgxpool.Pool) service.FlightService {
-	service := &flightService{
+	fs := &flightService{
 		metaRepo:      metaRepo,
 		flightRepo:    flightRepo,
 		kafkaProducer: kafkaProducer,
 		dbPool:        dbPool,
-		messageChan:   make(chan ProcessFlightMessageRequest, 100), // буферизированный канал
 	}
 
-	// Запускаем горутину для асинхронной обработки сообщений
-	go service.processMessagesAsync()
-
-	return service
+	return fs
 }

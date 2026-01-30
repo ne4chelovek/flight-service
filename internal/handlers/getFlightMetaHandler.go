@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// GetFlightMetaHandler обрабатывает GET запрос на /api/flights/{flight_number}/meta
 func (h *FlightHandler) GetFlightMetaHandler(c *gin.Context) {
 	// Извлечение параметра flight_number из пути
 	flightNumber := c.Param("flight_number")
@@ -35,9 +34,8 @@ func (h *FlightHandler) GetFlightMetaHandler(c *gin.Context) {
 		limit = parsedLimit
 	}
 
-	offset := 0
-
-	metas, total, err := h.metaRepo.GetByFlightNumber(c.Request.Context(), flightNumber, status, limit, offset)
+	// Используем сервис для получения метаданных
+	response, err := h.flightService.GetFlightMeta(c.Request.Context(), flightNumber, status, limit)
 	if err != nil {
 		logger.Error("Failed to get flight meta", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get flight meta"})
@@ -45,26 +43,29 @@ func (h *FlightHandler) GetFlightMetaHandler(c *gin.Context) {
 	}
 
 	// Формирование ответа
-	metaList := make([]gin.H, len(metas))
-	for i, meta := range metas {
+	metaList := make([]gin.H, len(response.Meta))
+	for i, meta := range response.Meta {
+		processedAt := ""
+		if !meta.ProcessedAt.IsZero() {
+			processedAt = meta.ProcessedAt.Format(time.RFC3339)
+		}
+
 		metaList[i] = gin.H{
 			"id":             meta.ID,
 			"flight_number":  meta.FlightNumber,
 			"departure_date": meta.DepartureDate.Format(time.RFC3339),
 			"status":         meta.Status,
 			"created_at":     meta.CreatedAt.Format(time.RFC3339),
-			"processed_at":   meta.ProcessedAt.Format(time.RFC3339),
+			"processed_at":   processedAt,
 		}
 	}
 
-	response := gin.H{
-		"flight_number": flightNumber,
+	c.JSON(http.StatusOK, gin.H{
+		"flight_number": response.FlightNumber,
 		"meta":          metaList,
 		"pagination": gin.H{
-			"total": total,
-			"limit": limit,
+			"total": response.Pagination.Total,
+			"limit": response.Pagination.Limit,
 		},
-	}
-
-	c.JSON(http.StatusOK, response)
+	})
 }
