@@ -1,0 +1,127 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Flight Service - Kafka Metrics",
+    "tags": ["flight-service", "kafka"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "5s",
+    "schemaVersion": 27,
+    "version": 1,
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "timepicker": {},
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": []
+    },
+    "editable": true,
+    "gnetId": null,
+    "graphTooltip": 0,
+    "links": [],
+    "panels": [
+      {
+        "id": 1,
+        "title": "Messages Sent to Kafka",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(kafka_messages_sent_total[1m]))",
+            "legendFormat": "Messages/sec",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Messages/sec",
+            "show": true
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Messages Processed from Kafka",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(kafka_messages_processed_total[1m]))",
+            "legendFormat": "Messages/sec",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Messages/sec",
+            "show": true
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Consumer Lag (messages behind)",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "kafka_consumer_lag_current",
+            "legendFormat": "Lag",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Messages",
+            "show": true
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Kafka Processing Errors",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "sum(increase(kafka_processing_errors_total[1m]))",
+            "legendFormat": "Errors/min",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Errors/min",
+            "show": true
+          }
+        ]
+      }
+    ],
+    "refresh": "5s"
+  },
+  "overwrite": true
+}

@@ -1,0 +1,132 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Flight Service - Database Metrics",
+    "tags": ["flight-service", "database"],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "5s",
+    "schemaVersion": 27,
+    "version": 1,
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "timepicker": {},
+    "templating": {
+      "list": []
+    },
+    "annotations": {
+      "list": []
+    },
+    "editable": true,
+    "gnetId": null,
+    "graphTooltip": 0,
+    "links": [],
+    "panels": [
+      {
+        "id": 1,
+        "title": "Total Flights Processed",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(flights_processed_total[1m]))",
+            "legendFormat": "Flights/sec",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Flights/sec",
+            "show": true
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Average Passengers per Flight",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(passengers_per_flight_bucket[1m])) by (le))",
+            "legendFormat": "p95",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(passengers_per_flight_bucket[1m])) by (le))",
+            "legendFormat": "p50",
+            "refId": "B"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Passengers",
+            "show": true
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Flights Count by Aircraft Type",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "sum(rate(aircraft_type_count_total[1m])) by (type)",
+            "legendFormat": "{{type}}",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Flights/sec",
+            "show": true
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Flight Meta Status Distribution",
+        "type": "graph",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "sum(flight_meta_status_count) by (status)",
+            "legendFormat": "{{status}}",
+            "refId": "A"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Count",
+            "show": true
+          }
+        ]
+      }
+    ],
+    "refresh": "5s"
+  },
+  "overwrite": true
+}

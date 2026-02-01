@@ -9,3 +9,8 @@ type FlightRequest struct {
 	ArrivalDate     time.Time `json:"arrival_date"`
 	PassengersCount int       `json:"passengers_count"`
 }
+
+type FlightRequestData struct {
+	Request FlightRequest
+	MetaID  int
+}

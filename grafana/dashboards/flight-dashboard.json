@@ -146,5 +146,6 @@
       "to": "now"
     },
     "refresh": "5s"
-  }
+  },
+  "overwrite": true
 }

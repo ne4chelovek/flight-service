@@ -3,7 +3,7 @@ apiVersion: 1
 providers:
   - name: 'Flight Service Dashboards'
     orgId: 1
-    folder: 'Flight Service'
+    folder: ''
     type: file
     disableDeletion: false
     editable: true

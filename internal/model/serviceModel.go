@@ -3,12 +3,12 @@ package model
 import "time"
 
 type FlightMeta struct {
-	ID            int       `db:"id"`
-	FlightNumber  string    `db:"flight_number"`
-	DepartureDate time.Time `db:"departure_date"`
-	Status        string    `db:"status"` // pending, processed, error
-	CreatedAt     time.Time `db:"created_at"`
-	ProcessedAt   time.Time `db:"processed_at"`
+	ID            int        `db:"id"`
+	FlightNumber  string     `db:"flight_number"`
+	DepartureDate time.Time  `db:"departure_date"`
+	Status        string     `db:"status"` // pending, processed, error
+	CreatedAt     time.Time  `db:"created_at"`
+	ProcessedAt   *time.Time `db:"processed_at"`
 }
 
 type FlightData struct {
@@ -18,4 +18,15 @@ type FlightData struct {
 	ArrivalDate     time.Time `db:"arrival_date"`
 	PassengersCount int       `db:"passengers_count"`
 	UpdatedAt       time.Time `db:"updated_at"`
+}
+
+type Pagination struct {
+	Total int `json:"total"`
+	Limit int `json:"limit"`
+}
+
+type FlightMetaResponse struct {
+	FlightNumber string        `json:"flight_number"`
+	Meta         []*FlightMeta `json:"meta"`
+	Pagination   Pagination    `json:"pagination"`
 }
