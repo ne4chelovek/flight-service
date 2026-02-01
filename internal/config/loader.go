@@ -4,12 +4,18 @@ import (
 	"fmt"
 	"github.com/spf13/viper"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 )
 
 func LoadConfig() (*Config, error) {
-	viper.SetConfigName("local")
+	env := os.Getenv("ENVIRONMENT")
+	if env == "" {
+		env = "local" // значение по умолчанию
+	}
+
+	viper.SetConfigName(env)
 	viper.SetConfigType("yml")
 
 	absPath, err := filepath.Abs("configs")
@@ -30,6 +36,6 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	log.Println("Loaded config")
+	log.Printf("Loaded config: %s", env)
 	return &cfg, nil
 }

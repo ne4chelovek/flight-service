@@ -23,6 +23,9 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	log.Printf("Configuration loaded - Kafka GroupID: '%s' (empty: %v)",
+		cfg.Kafka.GroupID, cfg.Kafka.GroupID == "")
+
 	servers, err := app.SetupServer(ctx, cfg)
 	if err != nil {
 		log.Fatalf("Failed to setup servers: %v", err)
@@ -56,7 +59,6 @@ func runKafkaConsumer(ctx context.Context, consumer *kafka.Consumer, name string
 		zap.String("name", name),
 		zap.Time("started_at", time.Now()),
 	)
-
 	if err := consumer.Consume(ctx); err != nil {
 		errChan <- fmt.Errorf("failed to start Kafka consumer: %w", err)
 	}

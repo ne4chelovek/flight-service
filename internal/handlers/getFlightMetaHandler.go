@@ -46,7 +46,7 @@ func (h *FlightHandler) GetFlightMetaHandler(c *gin.Context) {
 	metaList := make([]gin.H, len(response.Meta))
 	for i, meta := range response.Meta {
 		processedAt := ""
-		if !meta.ProcessedAt.IsZero() {
+		if meta.ProcessedAt != nil && !meta.ProcessedAt.IsZero() {
 			processedAt = meta.ProcessedAt.Format(time.RFC3339)
 		}
 

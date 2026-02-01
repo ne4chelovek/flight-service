@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"flight-service/internal/logger"
@@ -32,6 +33,10 @@ func (h *FlightHandler) GetFlightHandler(c *gin.Context) {
 	flight, err := h.flightService.GetFlight(c.Request.Context(), flightNumber, departureDate)
 	if err != nil {
 		logger.Error("Failed to get flight", zap.Error(err))
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get flight"})
 		return
 	}

@@ -16,8 +16,9 @@ type QueryRunner interface {
 
 type MetaRepository interface {
 	WithTx(tx pgx.Tx) MetaRepository
-	Create(ctx context.Context, meta *model.FlightMeta) error
+	Create(ctx context.Context, meta *model.FlightMeta) (int, error)
 	UpdateStatus(ctx context.Context, id int, status string) error
+	GetStatusCounts(ctx context.Context) (map[string]int, error)
 	GetByFlightNumber(ctx context.Context, flightNumber string, status string, limit int, offset int) ([]*model.FlightMeta, int, error)
 }
 

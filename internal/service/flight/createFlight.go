@@ -24,11 +24,14 @@ func (f *flightService) CreateFlight(ctx context.Context, request *model.FlightR
 		CreatedAt:     time.Now(),
 	}
 
-	err := f.metaRepo.Create(ctx, meta)
+	id, err := f.metaRepo.Create(ctx, meta)
 	if err != nil {
 		logger.Error("Failed to create flight meta", zap.Error(err))
 		return 0, err
 	}
+
+	// Обновляем ID в мета-объекте
+	meta.ID = id
 
 	metrics.FlightMetaStatusCount.WithLabelValues("pending").Inc()
 

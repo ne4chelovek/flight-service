@@ -15,7 +15,7 @@ RUN go mod download
 COPY . .
 
 # Сборка приложения
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server/cmd.go
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server/main.go
 
 # Вторая стадия: создание минимального образа
 FROM scratch
@@ -26,8 +26,8 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 # Копирование скомпилированного бинарника
 COPY --from=builder /app/main .
 
-# Копирование конфигурационного файла
-COPY --from=builder /app/configs/local.yml /configs/local.yml
+# Копирование конфигурационных файлов
+COPY --from=builder /app/configs/ /configs/
 
 # Указание порта
 EXPOSE 8080

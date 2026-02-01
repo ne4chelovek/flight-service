@@ -11,4 +11,5 @@ type FlightService interface {
 	GetFlight(ctx context.Context, flightNumber string, departureDate time.Time) (*model.FlightData, error)
 	GetFlightMeta(ctx context.Context, flightNumber string, status string, limit int) (*model.FlightMetaResponse, error)
 	ProcessFlightFromKafka(ctx context.Context, metaID int, request *model.FlightRequest) error
+	UpdateFlightMetaStatusMetrics(ctx context.Context) error
 }

@@ -37,9 +37,6 @@ func (f *flightService) ProcessFlightFromKafka(ctx context.Context, metaID int, 
 	if err != nil {
 		return fmt.Errorf("failed to update meta status: %w", err)
 	}
-	// Обновляем метрики статусов
-	metrics.FlightMetaStatusCount.WithLabelValues("pending").Dec()
-	metrics.FlightMetaStatusCount.WithLabelValues("processed").Inc()
 
 	// 2. Создаем или обновляем данные о полете
 	// Создаем FlightData из FlightRequest
@@ -60,14 +57,15 @@ func (f *flightService) ProcessFlightFromKafka(ctx context.Context, metaID int, 
 		return fmt.Errorf("failed to upsert flight: %w", err)
 	}
 
-	// Успешная обработка
-	metrics.FlightsProcessed.Inc()
-
 	// 3. Если все успешно - коммитим транзакцию
 	err = tx.Commit(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
+
+	metrics.FlightMetaStatusCount.WithLabelValues("pending").Dec()
+	metrics.FlightMetaStatusCount.WithLabelValues("processed").Inc()
+	metrics.FlightsProcessed.Inc()
 
 	logger.Info("Successfully processed Kafka message",
 		zap.Int("metaID", metaID),

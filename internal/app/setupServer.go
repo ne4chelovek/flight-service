@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -29,7 +28,6 @@ var logLevel = flag.String("1", "info", "log level")
 
 type Servers struct {
 	HTTP          *http.Server
-	Redis         *redis.Client
 	Prometheus    *http.Server
 	DB            *pgxpool.Pool
 	KafkaProducer *kafka.Producer
@@ -53,12 +51,6 @@ func SetupServer(ctx context.Context, cfg *config.Config) (*Servers, error) {
 		return nil, err
 	}
 
-	redisConn, err := newRedisClient(ctx, cfg.Redis)
-	if err != nil {
-		logger.Error("Failed to create Redis client", zap.Error(err))
-		return nil, err
-	}
-
 	// Создаем Kafka producer
 	kafkaProducer, err := kafka.NewProducer(cfg.Kafka.KafkaBrokers, cfg.Kafka.Topic)
 	if err != nil {
@@ -72,7 +64,7 @@ func SetupServer(ctx context.Context, cfg *config.Config) (*Servers, error) {
 
 	kafkaConsumer, err := kafka.NewConsumer(
 		cfg.Kafka.KafkaBrokers,
-		cfg.Kafka.KafkaGroupID,
+		cfg.Kafka.GroupID,
 		cfg.Kafka.Topic,
 		initHandler,
 	)
@@ -89,7 +81,6 @@ func SetupServer(ctx context.Context, cfg *config.Config) (*Servers, error) {
 			Addr:    cfg.Server.Port,
 			Handler: ginEng,
 		},
-		Redis: redisConn,
 		Prometheus: &http.Server{
 			Addr:        ":9000",
 			Handler:     promhttp.Handler(),
@@ -148,22 +139,6 @@ func initDB(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	}
 
 	return pool, nil
-}
-
-func newRedisClient(ctx context.Context, cfg config.RedisConfig) (*redis.Client, error) {
-	addr := fmt.Sprintf("%s:%s", cfg.Host, cfg.Port)
-	client := redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: cfg.Password,
-		DB:       cfg.DB,
-	})
-
-	// Проверяем подключение
-	if err := client.Ping(ctx).Err(); err != nil {
-		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
-	}
-
-	return client, nil
 }
 
 func createFlightService(kafkaProducer *kafka.Producer, dbPool *pgxpool.Pool) service.FlightService {

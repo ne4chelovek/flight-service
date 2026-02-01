@@ -2,6 +2,7 @@ package flightRepo
 
 import (
 	"context"
+	"errors"
 	"flight-service/internal/model"
 	"flight-service/internal/repository"
 	"fmt"
@@ -9,6 +10,17 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"time"
+)
+
+// Константы для таблицы flights
+const (
+	TableFlights          = "flights"
+	ColumnFlightNumber    = "flight_number"
+	ColumnDepartureDate   = "departure_date"
+	ColumnAircraftType    = "aircraft_type"
+	ColumnArrivalDate     = "arrival_date"
+	ColumnPassengersCount = "passengers_count"
+	ColumnUpdatedAt       = "updated_at"
 )
 
 type flightRepository struct {
@@ -19,28 +31,34 @@ type flightRepository struct {
 func NewFlightRepository(db *pgxpool.Pool) repository.FlightRepository {
 	return &flightRepository{
 		db: db,
+		sq: squirrel.StatementBuilder,
 	}
 }
 
 func (f *flightRepository) WithTx(tx pgx.Tx) repository.FlightRepository {
 	return &flightRepository{
 		db: tx,
+		sq: squirrel.StatementBuilder,
 	}
 }
 
 func (f *flightRepository) Upsert(ctx context.Context, flight *model.FlightData) error {
-	query := f.sq.Insert("flights").
-		Columns("flight_number", "departure_date", "aircraft_type", "arrival_date", "passengers_count", "updated_at").
+	query := f.sq.Insert(TableFlights).
+		Columns(ColumnFlightNumber, ColumnDepartureDate, ColumnAircraftType, ColumnArrivalDate, ColumnPassengersCount, ColumnUpdatedAt).
 		Values(flight.FlightNumber, flight.DepartureDate, flight.AircraftType, flight.ArrivalDate, flight.PassengersCount, flight.UpdatedAt).
 		PlaceholderFormat(squirrel.Dollar).
-		Suffix(`
-			ON CONFLICT (flight_number, departure_date)
+		Suffix(fmt.Sprintf(`
+			ON CONFLICT (%s, %s)
 			DO UPDATE SET
-				aircraft_type = EXCLUDED.aircraft_type,
-				arrival_date = EXCLUDED.arrival_date,
-				passengers_count = EXCLUDED.passengers_count,
-				updated_at = EXCLUDED.updated_at
-		`)
+				%s = EXCLUDED.%s,
+				%s = EXCLUDED.%s,
+				%s = EXCLUDED.%s,
+				%s = EXCLUDED.%s
+		`, ColumnFlightNumber, ColumnDepartureDate,
+			ColumnAircraftType, ColumnAircraftType,
+			ColumnArrivalDate, ColumnArrivalDate,
+			ColumnPassengersCount, ColumnPassengersCount,
+			ColumnUpdatedAt, ColumnUpdatedAt))
 
 	sql, args, err := query.ToSql()
 	if err != nil {
@@ -52,11 +70,11 @@ func (f *flightRepository) Upsert(ctx context.Context, flight *model.FlightData)
 }
 
 func (f *flightRepository) Get(ctx context.Context, flightNumber string, departureDate time.Time) (*model.FlightData, error) {
-	query := f.sq.Select("aircraft_type", "arrival_date", "passengers_count", "updated_at").
-		From("flights").
+	query := f.sq.Select(ColumnAircraftType, ColumnArrivalDate, ColumnPassengersCount, ColumnUpdatedAt).
+		From(TableFlights).
 		Where(squirrel.And{
-			squirrel.Eq{"flight_number": flightNumber},
-			squirrel.Eq{"departure_date": departureDate},
+			squirrel.Eq{ColumnFlightNumber: flightNumber},
+			squirrel.Eq{ColumnDepartureDate: departureDate},
 		}).PlaceholderFormat(squirrel.Dollar)
 
 	sql, args, err := query.ToSql()
@@ -72,7 +90,7 @@ func (f *flightRepository) Get(ctx context.Context, flightNumber string, departu
 		&flight.UpdatedAt,
 	)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("flight with number %s and departure date %s not found", flightNumber, departureDate.Format(time.RFC3339))
 		}
 		return nil, err

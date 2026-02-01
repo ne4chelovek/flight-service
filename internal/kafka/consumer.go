@@ -7,6 +7,7 @@ import (
 	"flight-service/internal/metrics"
 	"flight-service/internal/model"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/IBM/sarama"
@@ -28,10 +29,20 @@ type Consumer struct {
 
 // NewConsumer создаёт новый экземпляр Consumer
 func NewConsumer(brokers []string, groupID, topic string, handler MessageHandler) (*Consumer, error) {
+	if groupID == "" {
+		return nil, fmt.Errorf("groupID cannot be empty")
+	}
+
 	config := sarama.NewConfig()
 	config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
 	config.Consumer.Offsets.Initial = sarama.OffsetOldest
 	config.Consumer.Return.Errors = true
+
+	config.Net.DialTimeout = 10 * time.Second
+	config.Net.ReadTimeout = 10 * time.Second
+	config.Net.WriteTimeout = 10 * time.Second
+
+	config.Metadata.AllowAutoTopicCreation = true
 
 	consumerGroup, err := sarama.NewConsumerGroup(brokers, groupID, config)
 	if err != nil {
@@ -57,14 +68,22 @@ func (c *Consumer) Consume(ctx context.Context) error {
 		default:
 			err := c.consumerGroup.Consume(ctx, []string{c.topic}, c)
 			if err != nil {
-				logger.Info("Ошибка при потреблении сообщений: %v", zap.Error(err))
+				logger.Error("Ошибка при потреблении сообщений",
+					zap.Error(err),
+					zap.String("topic", c.topic))
+
+				select {
+				case <-ctx.Done():
+					return c.consumerGroup.Close()
+				case <-time.After(5 * time.Second):
+				}
 			}
 		}
 	}
 }
 
 // Close закрывает соединение с Kafka
-func (c *Consumer) Close() error {
+func (c *Consumer) CloseConsume() error {
 	return c.consumerGroup.Close()
 }
 
@@ -89,11 +108,18 @@ func (c *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim saram
 			continue
 		}
 
+		if message.Key == nil {
+			logger.Error("Message key is nil, skipping")
+			metrics.KafkaProcessingErrors.Inc()
+			continue
+		}
+
 		// Извлечение metaID из ключа сообщения
-		var metaID int
-		_, err = fmt.Sscanf(string(message.Key), "%d", &metaID)
+		metaID, err := strconv.Atoi(string(message.Key))
 		if err != nil {
-			logger.Error("Ошибка при извлечении metaID", zap.Error(err))
+			logger.Error("Failed to parse message key as integer",
+				zap.ByteString("key", message.Key),
+				zap.Error(err))
 			metrics.KafkaProcessingErrors.Inc()
 			continue
 		}
@@ -121,12 +147,15 @@ func (c *Consumer) processWithRetry(ctx context.Context, metaID int, request *mo
 
 	for attempt := 0; attempt < c.retryAttempts; attempt++ {
 		if attempt > 0 {
-			time.Sleep(c.retryDelay)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(c.retryDelay):
+			}
 		}
 
 		lastErr = c.handler.ProcessFlightMessage(ctx, metaID, request)
 		if lastErr == nil {
-			metrics.KafkaMessagesProcessed.Inc()
 			return nil
 		}
 

@@ -6,7 +6,19 @@ import (
 	"flight-service/internal/repository"
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// Константы для таблицы flight_meta
+const (
+	TableFlightMeta     = "flight_meta"
+	ColumnID            = "id"
+	ColumnFlightNumber  = "flight_number"
+	ColumnDepartureDate = "departure_date"
+	ColumnStatus        = "status"
+	ColumnCreatedAt     = "created_at"
+	ColumnProcessedAt   = "processed_at"
 )
 
 type metaRepository struct {
@@ -17,35 +29,43 @@ type metaRepository struct {
 func NewMetaRepository(db *pgxpool.Pool) repository.MetaRepository {
 	return &metaRepository{
 		db: db,
+		sq: squirrel.StatementBuilder,
 	}
 }
 
 func (r *metaRepository) WithTx(tx pgx.Tx) repository.MetaRepository {
 	return &metaRepository{
 		db: tx,
+		sq: squirrel.StatementBuilder,
 	}
 }
 
-func (r *metaRepository) Create(ctx context.Context, meta *model.FlightMeta) error {
-	query := r.sq.Insert("flight_meta").
-		Columns("flight_number", "departure_date", "status").
+func (r *metaRepository) Create(ctx context.Context, meta *model.FlightMeta) (int, error) {
+	query := r.sq.Insert(TableFlightMeta).
+		Columns(ColumnFlightNumber, ColumnDepartureDate, ColumnStatus).
 		Values(meta.FlightNumber, meta.DepartureDate, "pending").
+		Suffix("RETURNING " + ColumnID).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sql, args, err := query.ToSql()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	_, err = r.db.Exec(ctx, sql, args...)
-	return err
+	var id int
+	err = r.db.QueryRow(ctx, sql, args...).Scan(&id)
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
 }
 
 func (r *metaRepository) UpdateStatus(ctx context.Context, id int, status string) error {
-	query := r.sq.Update("flight_meta").
-		Set("status", status).
-		Set("processed_at", squirrel.Expr("CURRENT_TIMESTAMP")).
-		Where(squirrel.Eq{"id": id}).
+	query := r.sq.Update(TableFlightMeta).
+		Set(ColumnStatus, status).
+		Set(ColumnProcessedAt, squirrel.Expr("CURRENT_TIMESTAMP")).
+		Where(squirrel.Eq{ColumnID: id}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	sql, args, err := query.ToSql()
@@ -59,17 +79,17 @@ func (r *metaRepository) UpdateStatus(ctx context.Context, id int, status string
 
 func (r *metaRepository) GetByFlightNumber(ctx context.Context, flightNumber string, status string, limit int, offset int) ([]*model.FlightMeta, int, error) {
 	// Основной запрос на получение данных
-	baseQuery := r.sq.Select("id", "flight_number", "departure_date", "status", "created_at", "processed_at").
-		From("flight_meta").
-		Where(squirrel.Eq{"flight_number": flightNumber}).
-		OrderBy("created_at DESC").
+	baseQuery := r.sq.Select(ColumnID, ColumnFlightNumber, ColumnDepartureDate, ColumnStatus, ColumnCreatedAt, ColumnProcessedAt).
+		From(TableFlightMeta).
+		Where(squirrel.Eq{ColumnFlightNumber: flightNumber}).
+		OrderBy(ColumnCreatedAt + " DESC").
 		Limit(uint64(limit)).
 		Offset(uint64(offset)).
 		PlaceholderFormat(squirrel.Dollar)
 
 	// Добавляем условие по статусу только если он не пустой
 	if status != "" {
-		baseQuery = baseQuery.Where(squirrel.Eq{"status": status})
+		baseQuery = baseQuery.Where(squirrel.Eq{ColumnStatus: status})
 	}
 
 	sql, args, err := baseQuery.ToSql()
@@ -86,21 +106,29 @@ func (r *metaRepository) GetByFlightNumber(ctx context.Context, flightNumber str
 	var metas []*model.FlightMeta
 	for rows.Next() {
 		meta := &model.FlightMeta{}
-		err := rows.Scan(&meta.ID, &meta.FlightNumber, &meta.DepartureDate, &meta.Status, &meta.CreatedAt, &meta.ProcessedAt)
+		var processedAt pgtype.Timestamp
+
+		err = rows.Scan(&meta.ID, &meta.FlightNumber, &meta.DepartureDate, &meta.Status, &meta.CreatedAt, &processedAt)
 		if err != nil {
 			return nil, 0, err
 		}
+		if processedAt.Valid {
+			meta.ProcessedAt = &processedAt.Time
+		} else {
+			meta.ProcessedAt = nil
+		}
+
 		metas = append(metas, meta)
 	}
 
 	// Запрос для получения общего количества
 	countQuery := r.sq.Select("COUNT(*)").
-		From("flight_meta").
-		Where(squirrel.Eq{"flight_number": flightNumber}).
+		From(TableFlightMeta).
+		Where(squirrel.Eq{ColumnFlightNumber: flightNumber}).
 		PlaceholderFormat(squirrel.Dollar)
 
 	if status != "" {
-		countQuery = countQuery.Where(squirrel.Eq{"status": status})
+		countQuery = countQuery.Where(squirrel.Eq{ColumnStatus: status})
 	}
 
 	countSql, countArgs, err := countQuery.ToSql()
@@ -115,4 +143,36 @@ func (r *metaRepository) GetByFlightNumber(ctx context.Context, flightNumber str
 	}
 
 	return metas, total, nil
+}
+
+// GetStatusCounts возвращает количество записей по каждому статусу
+func (r *metaRepository) GetStatusCounts(ctx context.Context) (map[string]int, error) {
+	query := r.sq.Select(ColumnStatus, "COUNT(*) as count").
+		From(TableFlightMeta).
+		GroupBy(ColumnStatus).
+		PlaceholderFormat(squirrel.Dollar)
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.db.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	statusCounts := make(map[string]int)
+	for rows.Next() {
+		var status string
+		var count int
+		err := rows.Scan(&status, &count)
+		if err != nil {
+			return nil, err
+		}
+		statusCounts[status] = count
+	}
+
+	return statusCounts, nil
 }

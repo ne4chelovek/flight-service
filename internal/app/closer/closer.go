@@ -40,7 +40,7 @@ func WaitForShutdown(ctx context.Context, errChan <-chan error, s *app.Servers) 
 	// 2. Закрываем Kafka consumer
 	logger.Info("Closing Kafka consumer...")
 	if s.KafkaConsumer != nil {
-		if err := s.KafkaConsumer.Close(); err != nil {
+		if err := s.KafkaConsumer.CloseConsume(); err != nil {
 			logger.Error("Kafka consumer close error:", zap.Error(err))
 		}
 	}
@@ -51,12 +51,6 @@ func WaitForShutdown(ctx context.Context, errChan <-chan error, s *app.Servers) 
 		if err := s.KafkaProducer.Close(); err != nil {
 			logger.Error("Kafka producer close error:", zap.Error(err))
 		}
-	}
-
-	// 4. Закрываем остальные соединения
-	logger.Info("Closing redis connections...")
-	if err := s.Redis.Close(); err != nil {
-		logger.Error("Redis close error:", zap.Error(err))
 	}
 
 	logger.Info("Stopping Prometheus...")

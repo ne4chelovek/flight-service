@@ -28,6 +28,6 @@ type RedisConfig struct {
 
 type KafkaConfig struct {
 	KafkaBrokers []string `mapstructure:"brokers"`
-	KafkaGroupID string   `mapstructure:"KafkaGroupID"`
+	GroupID      string   `mapstructure:"group_id"`
 	Topic        string   `mapstructure:"topic"`
 }
