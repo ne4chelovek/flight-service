@@ -49,9 +49,6 @@ func (f *flightService) ProcessFlightFromKafka(ctx context.Context, metaID int, 
 		UpdatedAt:       time.Now(),
 	}
 
-	// Здесь можно добавить дополнительную логику, если нужно
-	// Например, рассчитать ArrivalDate на основе DepartureDate и времени полета
-
 	err = flightRepoWithTx.Upsert(ctx, flightData)
 	if err != nil {
 		return fmt.Errorf("failed to upsert flight: %w", err)

@@ -23,9 +23,6 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	log.Printf("Configuration loaded - Kafka GroupID: '%s' (empty: %v)",
-		cfg.Kafka.GroupID, cfg.Kafka.GroupID == "")
-
 	servers, err := app.SetupServer(ctx, cfg)
 	if err != nil {
 		log.Fatalf("Failed to setup servers: %v", err)

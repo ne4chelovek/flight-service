@@ -127,5 +127,6 @@
       }
     ],
     "refresh": "5s"
-  }
+  },
+  "overwrite": true
 }
